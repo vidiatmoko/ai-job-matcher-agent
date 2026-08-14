@@ -1,0 +1,20 @@
+# Environment variables (SANGAT PENTING - Menjaga API Key Aman)
+.env
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Node / React (untuk Frontend nanti)
+node_modules/
+build/
+dist/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
