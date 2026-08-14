@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from evaluator import evaluate_job
+from backend.evaluator import evaluate_job
 
 app = FastAPI(
     title="AI Job Matcher API",
