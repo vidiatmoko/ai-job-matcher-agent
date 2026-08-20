@@ -5,11 +5,11 @@
 # Python artifacts
 __pycache__/
 *.py[cod]
-*$py.class
+*.class
 venv/
 .venv/
 
-# Node / React (untuk Frontend nanti)
+# Node / React
 node_modules/
 build/
 dist/
@@ -18,3 +18,9 @@ dist/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local database
+backend/data/
+
+# Local AI cache
+backend/cache/
