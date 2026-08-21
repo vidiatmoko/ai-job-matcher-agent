@@ -380,11 +380,13 @@ def manual_job_endpoint(
     # OPPORTUNITIES
     # ============================================================
 
-@app.get("/api/opportunities")
-def opportunities_endpoint():
+@app.get("/api/notifications/opportunities")
+def notification_opportunities_endpoint():
     """
-    Mengambil daftar opportunity dari database.
+    Mengambil opportunity yang membutuhkan perhatian manusia.
 
+    Opportunity yang sudah memiliki application tidak ditampilkan.
+    Tidak melakukan auto-apply.
     Tidak memanggil AI.
     """
 
@@ -393,20 +395,40 @@ def opportunities_endpoint():
             minimum_priority="LOW"
         )
 
+        # Ambil semua application yang sudah tercatat
+        applications = list_applications()
+
+        # Job ID yang sudah pernah dilamar
+        applied_job_ids = {
+            application["job_id"]
+            for application in applications
+        }
+
+        actionable = [
+            opportunity
+            for opportunity in opportunities
+            if opportunity.get("id") not in applied_job_ids
+            and opportunity.get("final_action")
+            in {
+                "APPLY NOW",
+                "APPLY WITH TAILORED CV",
+                "VERIFY BEFORE APPLY",
+            }
+        ]
+
         return {
             "status": "ok",
-            "count": len(opportunities),
-            "opportunities": opportunities,
+            "count": len(actionable),
+            "opportunities": actionable,
         }
 
     except Exception as error:
         raise HTTPException(
             status_code=500,
             detail=(
-                f"Gagal mengambil opportunities: {error}"
+                f"Gagal mengambil notification opportunities: {error}"
             ),
         )
-
     # ============================================================
     # APPLY PACKAGE
     # ============================================================
@@ -571,42 +593,3 @@ def update_application_status_endpoint(
     # ============================================================
 # NOTIFICATION OPPORTUNITIES
 # ============================================================
-
-@app.get("/api/notifications/opportunities")
-def notification_opportunities_endpoint():
-    """
-    Mengambil opportunity yang membutuhkan perhatian manusia.
-
-    Tidak melakukan auto-apply.
-    Tidak memanggil AI.
-    """
-
-    try:
-        opportunities = list_priority_opportunities(
-            minimum_priority="LOW"
-        )
-
-        actionable = [
-            opportunity
-            for opportunity in opportunities
-            if opportunity.get("final_action")
-            in {
-                "APPLY NOW",
-                "APPLY WITH TAILORED CV",
-                "VERIFY BEFORE APPLY",
-            }
-        ]
-
-        return {
-            "status": "ok",
-            "count": len(actionable),
-            "opportunities": actionable,
-        }
-
-    except Exception as error:
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Gagal mengambil notification opportunities: {error}"
-            ),
-        )
