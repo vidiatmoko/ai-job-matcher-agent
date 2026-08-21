@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from backend.db.database import initialize_database
 
 from backend.evaluator import evaluate_job
 
@@ -35,6 +36,10 @@ app = FastAPI(
     ),
     version="2.0.0",
 )
+
+@app.on_event("startup")
+def startup_event():
+    initialize_database()
 
 
 # ============================================================
@@ -594,6 +599,9 @@ def update_application_status_endpoint(
     # ============================================================
 # NOTIFICATION OPPORTUNITIES
 # ============================================================
+
+
+
 
 
 
