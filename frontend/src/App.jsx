@@ -167,7 +167,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/opportunities`
+        `${API_URL}/api/notifications/opportunities`
       );
 
       const data = await response.json();
@@ -1930,3 +1930,4 @@ function Metric({
 }
 
 export default App;
+
