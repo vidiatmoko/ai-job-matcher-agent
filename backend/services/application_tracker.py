@@ -221,6 +221,7 @@ def get_application_eligibility(
             """
             SELECT
                 opportunity_assessments.final_action,
+                jobs.deadline,
                 ai_evaluations.id AS ai_evaluation_id,
                 ai_evaluations.match_score,
                 ai_evaluations.recommended_action
@@ -293,6 +294,29 @@ def create_application(
             f"karena final action adalah: "
             f"{final_action}"
         )
+
+    deadline = eligibility.get("deadline")
+
+    if deadline:
+        try:
+            deadline_dt = datetime.fromisoformat(
+                deadline.replace("Z", "+00:00")
+            )
+
+            if deadline_dt.tzinfo is None:
+                deadline_dt = deadline_dt.replace(
+                    tzinfo=timezone.utc
+                )
+
+            if deadline_dt < datetime.now(timezone.utc):
+                raise ValueError(
+                    "Job sudah melewati deadline dan "
+                    "tidak boleh ditandai APPLIED."
+                )
+
+        except ValueError as error:
+            if "sudah melewati deadline" in str(error):
+                raise
 
     if ai_evaluation_id is None:
         ai_evaluation_id = eligibility.get(
