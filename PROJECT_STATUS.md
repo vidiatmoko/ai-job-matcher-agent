@@ -1,15 +1,10 @@
-# AI Career Copilot — Project Status
+﻿# AI Career Copilot — Project Status
 
-## TARGET
+## PHASES
 
-MVP siap dipakai untuk mencari dan melamar pekerjaan remote.
-
-## PHASE
-
-1. Deployment
-2. Deadline protection
-3. Final end-to-end test
-4. Remote application #1
+1. Deadline protection
+2. Final end-to-end test
+3. Remote application #1
 
 ## DONE
 
@@ -24,24 +19,31 @@ MVP siap dipakai untuk mencari dan melamar pekerjaan remote.
 - n8n
 - Telegram
 - Supabase dedup
+- FastAPI Cloud production deployment
 
 ## CURRENT PHASE
 
-2. Deadline protection
+2. Final end-to-end test
 
-## CURRENT PROBLEM
+## DEADLINE STATUS
 
-Production FastAPI gagal start karena deployment memanggil FastAPI CLI dan menghasilkan:
+- NormalizedJob.deadline: DONE
+- Database jobs.deadline: DONE
+- Deadline merge during deduplication: DONE
+- Job sources currently do not provide a deadline field that we can safely map: VERIFIED
+- No artificial/fake deadline will be generated.
 
-RuntimeError: To use the fastapi command, please install "fastapi[standard]"
+## DEADLINE PROTECTION VERIFICATION
 
-Repository seharusnya menjalankan aplikasi menggunakan Uvicorn.
+- Expired job was tested end-to-end.
+- Application creation was correctly rejected.
+- Error: `Job sudah melewati deadline dan tidak boleh ditandai APPLIED.`
+- Temporary test data was deleted after verification.
+- No production data was modified.
 
 ## NEXT ACTION
 
-Perbaiki deployment FastAPI Cloud agar menjalankan aplikasi dengan:
-
-uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+Run final end-to-end test across the complete job -> matching -> opportunity -> application flow.
 
 ## DO NOT TOUCH
 
@@ -49,17 +51,18 @@ uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 - Telegram
 - Supabase
 - frontend
-- komponen yang sudah selesai
+- components already completed
+- production deployment
 
 ## LAST VERIFIED
 
 2026-08-21
 
-- FastAPI Cloud production deployment berhasil.
+- FastAPI Cloud production deployment successful.
 - Production URL: https://ai-job-matcher-agent.fastapicloud.dev
-- Production /docs tersedia.
-- Uvicorn berhasil start di production.
-- Commit deployment: 0ffee1e
+- Production /docs available.
+- Uvicorn successfully starts in production.
+- Deployment commit: 2d622ba
 
 ## WORKING RULES
 
@@ -67,10 +70,11 @@ uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 2. Satu perubahan utama lalu test.
 3. Setelah phase berhasil, update file ini dan buat Git commit.
 4. Jangan mengulang pekerjaan yang sudah DONE.
-5. Jangan menambah fitur baru sebelum empat phase utama selesai.
+5. Jangan menambah fitur baru sebelum tiga phase utama selesai.
 6. Jika pindah chat, lanjutkan dari CURRENT PHASE di file ini.
 7. Jangan menebak konfigurasi atau error; periksa bukti/error terlebih dahulu.
 
 ## NEXT CHAT
 
-Lanjut dari CURRENT PHASE, bukan mulai ulang.
+Lanjut dari CURRENT PHASE: Final end-to-end test.
+
