@@ -57,6 +57,7 @@ def initialize_database():
                 salary_min REAL,
                 salary_max REAL,
                 created_at TEXT,
+                deadline TEXT,
                 remote_status TEXT DEFAULT 'UNKNOWN',
                 remote_confidence TEXT DEFAULT 'UNKNOWN',
                 first_seen_at TEXT NOT NULL,

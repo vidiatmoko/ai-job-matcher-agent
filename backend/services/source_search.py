@@ -2,6 +2,7 @@ from typing import List
 
 from backend.services.sources.models import NormalizedJob
 from backend.services.sources.registry import get_job_sources
+from datetime import datetime, timezone
 
 
 def normalize_dedup_text(text: str) -> str:
@@ -79,6 +80,45 @@ def search_all_sources(
     unique_jobs = deduplicate_jobs(
         all_jobs
     )
+
+    # ==========================================================
+    # DEADLINE PROTECTION
+    # ==========================================================
+
+    now = datetime.now(timezone.utc)
+
+    active_jobs = []
+
+    for job in unique_jobs:
+
+        if job.deadline:
+
+            try:
+                deadline_dt = datetime.fromisoformat(
+                    job.deadline.replace("Z", "+00:00")
+                )
+
+                if deadline_dt.tzinfo is None:
+                    deadline_dt = deadline_dt.replace(
+                        tzinfo=timezone.utc
+                    )
+
+                if deadline_dt < now:
+                    print(
+                        f"[DEADLINE] EXPIRED: "
+                        f"{job.title} @ {job.company}"
+                    )
+                    continue
+
+            except ValueError:
+                print(
+                    f"[DEADLINE] Invalid deadline: "
+                    f"{job.deadline}"
+                )
+
+        active_jobs.append(job)
+
+    unique_jobs = active_jobs
 
     print(
         f"[DEDUP] {len(all_jobs)} raw jobs "
