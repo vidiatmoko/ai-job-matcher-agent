@@ -27,7 +27,7 @@ MVP siap dipakai untuk mencari dan melamar pekerjaan remote.
 
 ## CURRENT PHASE
 
-1. Deployment
+2. Deadline protection
 
 ## CURRENT PROBLEM
 
@@ -55,13 +55,11 @@ uvicorn backend.main:app --host 0.0.0.0 --port $PORT
 
 2026-08-21
 
-- backend memiliki package `backend`
-- `backend/__init__.py` sudah ada
-- `backend/requirements.txt` sudah ada
-- FastAPI production deployment belum sehat
-- Deadline/expired protection belum selesai
-- Final end-to-end production test belum dilakukan
-- Remote application pertama belum dilakukan
+- FastAPI Cloud production deployment berhasil.
+- Production URL: https://ai-job-matcher-agent.fastapicloud.dev
+- Production /docs tersedia.
+- Uvicorn berhasil start di production.
+- Commit deployment: 0ffee1e
 
 ## WORKING RULES
 
