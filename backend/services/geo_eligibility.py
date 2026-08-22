@@ -169,31 +169,12 @@ def assess_geo_eligibility(
     # 1. HARD RESTRICTION DI LOCATION
     # ========================================================
 
-    for country in RESTRICTED_LOCATION_NAMES:
-
-        if location == country:
-
-            return {
-                "status": "RESTRICTED",
-                "confidence": "HIGH",
-                "reason": (
-                    f"Job location is restricted to "
-                    f"{country}."
-                ),
-            }
-
-        if location.startswith(
-            f"{country},"
-        ):
-
-            return {
-                "status": "RESTRICTED",
-                "confidence": "HIGH",
-                "reason": (
-                    f"Job location starts with "
-                    f"restricted country: {country}."
-                ),
-            }
+    # A country name in the location field alone is NOT enough
+    # evidence for a hard restriction. For remote roles, the
+    # source may simply be expressing the employer's country.
+    #
+    # Explicit restrictions such as "US only" are handled below.
+    # Ambiguous country locations become NEEDS_VERIFICATION.
 
     # ========================================================
     # 2. HARD RESTRICTION DI FULL TEXT
@@ -313,7 +294,38 @@ def assess_geo_eligibility(
         }
 
     # ========================================================
-    # 8. UNKNOWN
+    # 8. COUNTRY LOCATION WITHOUT EXPLICIT RESTRICTION
+    # ========================================================
+
+    for country in RESTRICTED_LOCATION_NAMES:
+
+        if location == country:
+
+            return {
+                "status": "NEEDS_VERIFICATION",
+                "confidence": "MEDIUM",
+                "reason": (
+                    f"Job location is {country}, but no "
+                    "explicit country-only restriction was found."
+                ),
+            }
+
+        if location.startswith(
+            f"{country},"
+        ):
+
+            return {
+                "status": "NEEDS_VERIFICATION",
+                "confidence": "MEDIUM",
+                "reason": (
+                    f"Job location starts with {country}, "
+                    "but no explicit country-only restriction "
+                    "was found."
+                ),
+            }
+
+    # ========================================================
+    # 9. UNKNOWN
     # ========================================================
 
     return {
