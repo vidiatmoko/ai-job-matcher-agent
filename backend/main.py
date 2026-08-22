@@ -1,67 +1,54 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
 from backend.db.database import initialize_database
-
 from backend.evaluator import evaluate_job
-
-from backend.services.manual_job import (
-    prepare_manual_job,
-    save_manual_job,
-)
-
+from backend.services.manual_job import prepare_manual_job, save_manual_job
 from backend.services.application_tracker import (
     save_ai_evaluation,
     create_application,
     list_applications,
     update_application_status,
 )
-
 from backend.services.opportunity_service import (
     assess_job,
     save_opportunity_assessment,
     list_priority_opportunities,
 )
+from backend.services.opportunity_detail import get_opportunity_detail
+from backend.services.job_matcher import match_jobs
+from backend.services.process_opportunities import process_opportunities
 
-from backend.services.opportunity_detail import (
-    get_opportunity_detail,
-)
 
 app = FastAPI(
     title="AI Career Copilot API",
     description=(
-        "API Engine untuk AI job matching, "
-        "manual job analysis, geo eligibility, "
-        "opportunity scoring, dan application preparation."
+        "API Engine untuk AI job matching, job source search, filtering, "
+        "deadline protection, AI matching, geo eligibility, opportunity "
+        "scoring, dan application preparation."
     ),
-    version="2.0.0",
+    version="2.2.0",
 )
+
 
 @app.on_event("startup")
 def startup_event():
     initialize_database()
 
 
-# ============================================================
-# CORS
-# ============================================================
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://ai-job-matcher-agent.vercel.app",
-],
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://ai-job-matcher-agent.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# ============================================================
-# REQUEST SCHEMAS
-# ============================================================
 
 class JobRequest(BaseModel):
     job_title: str
@@ -77,22 +64,35 @@ class ManualJobRequest(BaseModel):
     url: str = ""
 
 
-# ============================================================
-# ROOT
-# ============================================================
+class SearchRequest(BaseModel):
+    keyword: str
+    location: str = ""
+    per_source_limit: int = 10
+    filter_limit: int = 11
+    execute_ai: bool = True
+
+
+class ApplicationRequest(BaseModel):
+    job_id: int
+    ai_evaluation_id: int | None = None
+    application_channel: str = "MANUAL"
+    cv_version: str = "v1"
+    notes: str = ""
+
+
+class ApplicationStatusRequest(BaseModel):
+    status: str
+    notes: str = ""
+
 
 @app.get("/")
 def read_root():
     return {
         "status": "online",
         "service": "AI Career Copilot Engine",
-        "version": "2.0.0",
+        "version": "2.2.0",
     }
 
-
-# ============================================================
-# HEALTH
-# ============================================================
 
 @app.get("/api/health")
 def health_check():
@@ -102,14 +102,62 @@ def health_check():
     }
 
 
-# ============================================================
-# LEGACY SINGLE JOB
-# ============================================================
+@app.post("/api/search")
+def search_jobs_endpoint(payload: SearchRequest):
+    """
+    Menjalankan pipeline job search -> AI matching ->
+    opportunity assessment.
+    Tidak melakukan auto-apply.
+    """
+    if not payload.keyword.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="keyword tidak boleh kosong.",
+        )
+
+    if payload.per_source_limit < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="per_source_limit harus minimal 1.",
+        )
+
+    if payload.filter_limit < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="filter_limit harus minimal 1.",
+        )
+
+    try:
+        results = match_jobs(
+            keyword=payload.keyword.strip(),
+            location=payload.location.strip(),
+            per_source_limit=payload.per_source_limit,
+            filter_limit=payload.filter_limit,
+            execute_ai=payload.execute_ai,
+        )
+
+        opportunities = (
+            process_opportunities()
+            if payload.execute_ai
+            else []
+        )
+
+        return {
+            "status": "ok",
+            "count": len(results),
+            "jobs": results,
+            "opportunities_count": len(opportunities),
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Gagal menjalankan job search: {error}",
+        )
+
 
 @app.post("/api/evaluate")
-def evaluate_job_endpoint(
-    payload: JobRequest,
-):
+def evaluate_job_endpoint(payload: JobRequest):
     if not payload.job_title.strip():
         raise HTTPException(
             status_code=400,
@@ -136,14 +184,8 @@ def evaluate_job_endpoint(
     return result
 
 
-# ============================================================
-# MANUAL JOB
-# ============================================================
-
 @app.post("/api/manual-job")
-def manual_job_endpoint(
-    payload: ManualJobRequest,
-):
+def manual_job_endpoint(payload: ManualJobRequest):
     if not payload.source.strip():
         raise HTTPException(
             status_code=400,
@@ -168,10 +210,6 @@ def manual_job_endpoint(
             detail="description tidak boleh kosong.",
         )
 
-    # --------------------------------------------------------
-    # Normalize
-    # --------------------------------------------------------
-
     try:
         job = prepare_manual_job(
             {
@@ -183,16 +221,11 @@ def manual_job_endpoint(
                 "url": payload.url,
             }
         )
-
     except ValueError as error:
         raise HTTPException(
             status_code=400,
             detail=str(error),
         )
-
-    # --------------------------------------------------------
-    # AI Evaluation
-    # --------------------------------------------------------
 
     ai_result = evaluate_job(
         job.title,
@@ -205,6 +238,10 @@ def manual_job_endpoint(
             detail=ai_result["error"],
         )
 
+    deadline = getattr(job, "deadline", None)
+    if deadline is None:
+        deadline = getattr(job, "application_deadline", None)
+
     combined = {
         "id": job.id,
         "title": job.title,
@@ -216,105 +253,61 @@ def manual_job_endpoint(
         "source_job_id": job.source_job_id,
         "remote_status": job.remote_status,
         "remote_confidence": job.remote_confidence,
-        "match_score": ai_result.get(
-            "match_score",
-            0,
-        ),
-        "fit_summary": ai_result.get(
-            "fit_summary",
-            "",
-        ),
-        "key_pros": ai_result.get(
-            "key_pros",
-            [],
-        ),
-        "key_gaps": ai_result.get(
-            "key_gaps",
-            [],
-        ),
+        "application_deadline": deadline,
+        "match_score": ai_result.get("match_score", 0),
+        "fit_summary": ai_result.get("fit_summary", ""),
+        "key_pros": ai_result.get("key_pros", []),
+        "key_gaps": ai_result.get("key_gaps", []),
         "recommended_action": ai_result.get(
-            "recommended_action",
-            "Skip",
+            "recommended_action", "Skip"
         ),
         "draft_outreach": ai_result.get(
-            "draft_outreach",
-            "",
+            "draft_outreach", ""
         ),
         "_ai_provider": ai_result.get(
-            "_ai_provider",
-            "unknown",
+            "_ai_provider", "unknown"
         ),
         "_ai_model": ai_result.get(
-            "_ai_model",
-            "unknown",
+            "_ai_model", "unknown"
         ),
     }
 
-    # --------------------------------------------------------
-    # Save job
-    # --------------------------------------------------------
-
     try:
         database_job_id = save_manual_job(job)
-
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal menyimpan manual job: {error}"
-            ),
+            detail=f"Gagal menyimpan manual job: {error}",
         )
-
-    # --------------------------------------------------------
-    # Save AI evaluation
-    # --------------------------------------------------------
 
     try:
         evaluation_id = save_ai_evaluation(
             job_id=database_job_id,
             result=combined,
-            provider=combined.get(
-                "_ai_provider",
-                "unknown",
-            ),
-            model=combined.get(
-                "_ai_model",
-                "unknown",
-            ),
+            provider=combined.get("_ai_provider", "unknown"),
+            model=combined.get("_ai_model", "unknown"),
             profile_version="v1",
         )
-
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal menyimpan AI evaluation: {error}"
-            ),
+            detail=f"Gagal menyimpan AI evaluation: {error}",
         )
-
-    # --------------------------------------------------------
-    # Opportunity
-    # --------------------------------------------------------
 
     try:
         assessment = assess_job(combined)
-
         save_opportunity_assessment(
             job_id=database_job_id,
             assessment=assessment,
         )
-
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal membuat opportunity assessment: {error}"
-            ),
+            detail=f"Gagal membuat opportunity assessment: {error}",
         )
 
     return {
         "status": "analyzed",
-
         "job": {
             "database_id": database_job_id,
             "title": job.title,
@@ -323,88 +316,46 @@ def manual_job_endpoint(
             "source": job.source,
             "url": job.url,
         },
-
         "ai": {
             "evaluation_id": evaluation_id,
-            "provider": combined.get(
-                "_ai_provider",
-                "unknown",
-            ),
-            "model": combined.get(
-                "_ai_model",
-                "unknown",
-            ),
-            "match_score": combined.get(
-                "match_score",
-                0,
-            ),
-            "fit_summary": combined.get(
-                "fit_summary",
-                "",
-            ),
-            "key_pros": combined.get(
-                "key_pros",
-                [],
-            ),
-            "key_gaps": combined.get(
-                "key_gaps",
-                [],
-            ),
+            "provider": combined.get("_ai_provider", "unknown"),
+            "model": combined.get("_ai_model", "unknown"),
+            "match_score": combined.get("match_score", 0),
+            "fit_summary": combined.get("fit_summary", ""),
+            "key_pros": combined.get("key_pros", []),
+            "key_gaps": combined.get("key_gaps", []),
             "recommended_action": combined.get(
-                "recommended_action",
-                "Skip",
+                "recommended_action", "Skip"
             ),
             "draft_outreach": combined.get(
-                "draft_outreach",
-                "",
+                "draft_outreach", ""
             ),
         },
-
         "opportunity": {
-            "geo_status": assessment.get(
-                "geo_status",
-            ),
-            "geo_confidence": assessment.get(
-                "geo_confidence",
-            ),
-            "geo_reason": assessment.get(
-                "geo_reason",
-            ),
+            "geo_status": assessment.get("geo_status"),
+            "geo_confidence": assessment.get("geo_confidence"),
+            "geo_reason": assessment.get("geo_reason"),
             "opportunity_score": assessment.get(
-                "opportunity_score",
+                "opportunity_score"
             ),
-            "priority": assessment.get(
-                "priority",
+            "priority": assessment.get("priority"),
+            "final_action": assessment.get("final_action"),
+            "application_deadline": assessment.get(
+                "application_deadline"
             ),
-            "final_action": assessment.get(
-                "final_action",
-            ),
+            "expired": assessment.get("expired", False),
         },
     }
 
-    # ============================================================
-    # OPPORTUNITIES
-    # ============================================================
 
 @app.get("/api/notifications/opportunities")
 def notification_opportunities_endpoint():
-    """
-    Mengambil opportunity yang membutuhkan perhatian manusia.
-
-    Opportunity yang sudah memiliki application tidak ditampilkan.
-    Tidak melakukan auto-apply.
-    Tidak memanggil AI.
-    """
-
     try:
         opportunities = list_priority_opportunities(
             minimum_priority="LOW"
         )
 
-        # Ambil semua application yang sudah tercatat
         applications = list_applications()
-
-        # Job ID yang sudah pernah dilamar
         applied_job_ids = {
             application["job_id"]
             for application in applications
@@ -432,28 +383,16 @@ def notification_opportunities_endpoint():
         raise HTTPException(
             status_code=500,
             detail=(
-                f"Gagal mengambil notification opportunities: {error}"
+                "Gagal mengambil notification opportunities: "
+                f"{error}"
             ),
         )
-    # ============================================================
-    # APPLY PACKAGE
-    # ============================================================
+
 
 @app.get("/api/opportunities/{job_id}/package")
-def opportunity_package_endpoint(
-    job_id: int,
-):
-    """
-    Mengambil detail lengkap opportunity untuk
-    Apply Package.
-
-    Tidak memanggil AI.
-    """
-
+def opportunity_package_endpoint(job_id: int):
     try:
-        opportunity = get_opportunity_detail(
-            job_id
-        )
+        opportunity = get_opportunity_detail(job_id)
 
         if opportunity is None:
             raise HTTPException(
@@ -468,37 +407,17 @@ def opportunity_package_endpoint(
 
     except HTTPException:
         raise
-
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal mengambil Apply Package: {error}"
-            ),
+            detail=f"Gagal mengambil Apply Package: {error}",
         )
-
-    # ============================================================
-    # MARK AS APPLIED
-    # ============================================================
-
-class ApplicationRequest(BaseModel):
-    job_id: int
-    ai_evaluation_id: int | None = None
-    application_channel: str = "MANUAL"
-    cv_version: str = "v1"
-    notes: str = ""
 
 
 @app.post("/api/applications")
 def create_application_endpoint(
     payload: ApplicationRequest,
 ):
-    """
-    Menandai job sebagai sudah dilamar.
-
-    Tidak memanggil AI.
-    """
-
     try:
         application_id = create_application(
             job_id=payload.job_id,
@@ -514,25 +433,20 @@ def create_application_endpoint(
             "job_id": payload.job_id,
         }
 
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal menyimpan application: {error}"
-            ),
+            detail=f"Gagal menyimpan application: {error}",
         )
-    # ============================================================
-    # APPLICATIONS
-    # ============================================================
+
 
 @app.get("/api/applications")
 def applications_endpoint():
-    """
-    Mengambil semua application yang sudah dicatat.
-
-    Tidak memanggil AI.
-    """
-
     try:
         applications = list_applications()
 
@@ -545,30 +459,15 @@ def applications_endpoint():
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Gagal mengambil applications: {error}"
-            ),
+            detail=f"Gagal mengambil applications: {error}",
         )
-
-    # ============================================================
-    # UPDATE APPLICATION STATUS
-    # ============================================================
-
-class ApplicationStatusRequest(BaseModel):
-    status: str
-    notes: str = ""
 
 
 @app.patch("/api/applications/{application_id}/status")
 def update_application_status_endpoint(
     application_id: int,
     payload: ApplicationStatusRequest,
-    ):
-    """
-    Mengubah status application dan mencatat event.
-    Tidak memanggil AI.
-    """
-
+):
     try:
         update_application_status(
             application_id=application_id,
@@ -587,21 +486,10 @@ def update_application_status_endpoint(
             status_code=400,
             detail=str(error),
         )
-
     except Exception as error:
         raise HTTPException(
             status_code=500,
             detail=(
-                f"Gagal mengubah status application: {error}"
+                f"Gagal mengubah application status: {error}"
             ),
         )
-
-    # ============================================================
-# NOTIFICATION OPPORTUNITIES
-# ============================================================
-
-
-
-
-
-
