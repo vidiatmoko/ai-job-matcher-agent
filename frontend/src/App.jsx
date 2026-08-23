@@ -31,6 +31,8 @@ const APPLICATION_STATUSES = [
 function App() {
   const [activeTab, setActiveTab] = useState("manual");
 
+  const [infoModal, setInfoModal] = useState(null);
+
   // ==========================================================
   // MANUAL JOB
   // ==========================================================
@@ -211,7 +213,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Gagal mengambil Apply Package."
+            "Gagal mengambil Apply Package"
         );
       }
 
@@ -298,7 +300,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Gagal menyimpan application."
+            "Gagal menyimpan application"
         );
       }
 
@@ -337,7 +339,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Gagal mengambil applications."
+            "Gagal mengambil applications"
         );
       }
 
@@ -388,7 +390,7 @@ function App() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            "Gagal mengubah status application."
+            "Gagal mengubah status application"
         );
       }
 
@@ -445,591 +447,639 @@ function App() {
   // RENDER
   // ==========================================================
 
+  const highPriorityCount = opportunities.filter(
+    (item) => item.priority === "HIGH"
+  ).length;
+
+  const verifyCount = opportunities.filter(
+    (item) => item.final_action === "VERIFY BEFORE APPLY"
+  ).length;
+
   return (
-    <div className="app">
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
-
-      <header className="header">
-        <div>
-          <p className="eyebrow">
-            AI CAREER COPILOT
-          </p>
-
-          <h1>
-            Find the right job.
-            <br />
-            Apply with confidence.
-          </h1>
-
-          <p className="subtitle">
-            Analyze jobs from LinkedIn,
-            Upwork, Glints, Wellfound,
-            and other platforms.
-          </p>
+    <div className="copilot-app">
+      <header className="copilot-topbar">
+        <div className="copilot-brand">
+          <div className="copilot-brand-mark">AI</div>
+          <div>
+            <div className="copilot-brand-name">Remote Job Intelligence</div>
+            <div className="copilot-brand-subtitle">
+              Remote Job Intelligence
+            </div>
+          </div>
         </div>
 
-        <div className="status-pill">
-          ● API Ready
+        <nav className="copilot-nav" aria-label="Primary">
+          <button
+            type="button"
+            className={activeTab === "manual" ? "copilot-nav-link active" : "copilot-nav-link"}
+            onClick={() => {
+              setActiveTab("manual");
+              setSelectedPackage(null);
+              setApplicationMessage("");
+            }}
+          >
+            Analyze
+          </button>
+
+          <button
+            type="button"
+            className={
+              activeTab === "opportunities"
+                ? "copilot-nav-link active"
+                : "copilot-nav-link"
+            }
+            onClick={() => {
+              setActiveTab("opportunities");
+              setSelectedPackage(null);
+              setApplicationMessage("");
+            }}
+          >
+            Opportunities
+            {opportunities.length > 0 && (
+              <span className="copilot-nav-count">
+                {opportunities.length}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className={
+              activeTab === "applications"
+                ? "copilot-nav-link active"
+                : "copilot-nav-link"
+            }
+            onClick={() => {
+              setActiveTab("applications");
+              setSelectedPackage(null);
+              setApplicationMessage("");
+            }}
+          >
+            Applications
+            {applications.length > 0 && (
+              <span className="copilot-nav-count">
+                {applications.length}
+              </span>
+            )}
+          </button>
+        </nav>
+
+        <div className="copilot-status">
+          <span className="copilot-status-dot" />
+          Production online
         </div>
       </header>
 
-      {/* ======================================================
-          NAVIGATION
-      ====================================================== */}
+      <main className="copilot-main">
+        {activeTab === "manual" && (
+          <>
+            <section className="copilot-hero">
+              <div className="copilot-kicker">
+                REMOTE JOB INTELLIGENCE
+              </div>
+              <h1>
+                Find the right
+                <br />
+                remote job
+              </h1>
+              <p>
+                AI researches, verifies and ranks
+                <br />
+                You decide what to pursue
+              </p>
 
-      <nav className="tabs">
+              <div className="copilot-process">
+                <span>
+                  <strong>01</strong> Match
+                </span>
+                <span>
+                  <strong>02</strong> Verify
+                </span>
+                <span>
+                  <strong>03</strong> Prioritize
+                </span>
+                <span>
+                  <strong>04</strong> Decide
+                </span>
+              </div>
+            </section>
 
-        <button
-          type="button"
-          className={
-            activeTab === "manual"
-              ? "tab active"
-              : "tab"
-          }
-          onClick={() => {
-            setActiveTab("manual");
-            setSelectedPackage(null);
-            setApplicationMessage("");
-          }}
-        >
-          Manual Job
-        </button>
-
-        <button
-          type="button"
-          className={
-            activeTab ===
-            "opportunities"
-              ? "tab active"
-              : "tab"
-          }
-          onClick={() => {
-            setActiveTab(
-              "opportunities"
-            );
-            setSelectedPackage(null);
-            setApplicationMessage("");
-          }}
-        >
-          My Opportunities
-        </button>
-
-        <button
-          type="button"
-          className={
-            activeTab ===
-            "applications"
-              ? "tab active"
-              : "tab"
-          }
-          onClick={() => {
-            setActiveTab(
-              "applications"
-            );
-            setSelectedPackage(null);
-            setApplicationMessage("");
-          }}
-        >
-          My Applications
-        </button>
-
-      </nav>
-
-      {/* ======================================================
-          MANUAL JOB
-      ====================================================== */}
-
-      {activeTab === "manual" && (
-
-        <main className="layout">
-
-          <section className="card">
-
-            <h2>
-              Manual Job Analyzer
-            </h2>
-
-            <p className="muted">
-              Copy the job details from
-              the original platform and
-              analyze them here.
-            </p>
-
-            <form
-              onSubmit={analyzeJob}
-            >
-
-              <label>
-                Source
-
-                <select
-                  value={
-                    form.source
-                  }
-                  onChange={(event) =>
-                    updateField(
-                      "source",
-                      event.target.value
-                    )
-                  }
-                >
-                  {SOURCES.map(
-                    (source) => (
-                      <option
-                        key={source}
-                        value={source}
-                      >
-                        {source}
-                      </option>
-                    )
-                  )}
-                </select>
-
-              </label>
-
-              <label>
-                Job URL
-
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={form.url}
-                  onChange={(event) =>
-                    updateField(
-                      "url",
-                      event.target.value
-                    )
-                  }
-                />
-
-              </label>
-
-              <label>
-                Job Title
-
-                <input
-                  required
-                  placeholder="AI Automation Engineer"
-                  value={form.title}
-                  onChange={(event) =>
-                    updateField(
-                      "title",
-                      event.target.value
-                    )
-                  }
-                />
-
-              </label>
-
-              <label>
-                Company
-
-                <input
-                  required
-                  placeholder="Company name"
-                  value={
-                    form.company
-                  }
-                  onChange={(event) =>
-                    updateField(
-                      "company",
-                      event.target.value
-                    )
-                  }
-                />
-
-              </label>
-
-              <label>
-                Location
-
-                <input
-                  placeholder="Remote / Indonesia / EMEA"
-                  value={
-                    form.location
-                  }
-                  onChange={(event) =>
-                    updateField(
-                      "location",
-                      event.target.value
-                    )
-                  }
-                />
-
-              </label>
-
-              <label>
-                Job Description
-
-                <textarea
-                  required
-                  rows="13"
-                  placeholder="Paste the complete job description here..."
-                  value={
-                    form.description
-                  }
-                  onChange={(event) =>
-                    updateField(
-                      "description",
-                      event.target.value
-                    )
-                  }
-                />
-
-              </label>
-
-              {error && (
-                <div className="error">
-                  {error}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={
-                  loading
-                }
-              >
-                {loading
-                  ? "ANALYZING..."
-                  : "ANALYZE JOB"}
-              </button>
-
-            </form>
-
-          </section>
-
-          <section className="card result-card">
-
-            {!result &&
-              !loading && (
-
-                <div className="empty">
-
-                  <div className="empty-icon">
-                    AI
+            <section className="copilot-analyze-grid">
+              <div className="copilot-panel">
+                <div className="copilot-panel-top">
+                  <div>
+                    <div className="copilot-section-label">
+                      ANALYZE A JOB
+                    </div>
+                    <h2>Evaluate a job before you apply</h2>
                   </div>
 
-                  <h2>
-                    No analysis yet
-                  </h2>
-
-                  <p>
-                    Submit a job to see
-                    match score, remote
-                    eligibility, opportunity
-                    score, strengths, gaps,
-                    and application action.
-                  </p>
-
+                  <div className="copilot-human-chip">
+                    HUMAN DECISION
+                  </div>
                 </div>
 
-              )}
+                <form
+                  onSubmit={analyzeJob}
+                  className="copilot-form"
+                >
+                  <div className="copilot-form-grid">
+                    <label>
+                      Source
+                      <select
+                        value={form.source}
+                        onChange={(event) =>
+                          updateField(
+                            "source",
+                            event.target.value
+                          )
+                        }
+                      >
+                        {SOURCES.map((source) => (
+                          <option key={source} value={source}>
+                            {source}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
 
-            {loading && (
+                    <label>
+                      Job URL
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={form.url}
+                        onChange={(event) =>
+                          updateField(
+                            "url",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
 
-              <div className="empty">
+                    <label>
+                      Job title
+                      <input
+                        required
+                        placeholder="AI Automation Engineer"
+                        value={form.title}
+                        onChange={(event) =>
+                          updateField(
+                            "title",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
 
-                <div className="loader" />
+                    <label>
+                      Company
+                      <input
+                        required
+                        placeholder="Company name"
+                        value={form.company}
+                        onChange={(event) =>
+                          updateField(
+                            "company",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
 
-                <h2>
-                  Analyzing opportunity...
-                </h2>
+                    <label className="copilot-full">
+                      Location
+                      <input
+                        placeholder="Remote / Indonesia / EMEA"
+                        value={form.location}
+                        onChange={(event) =>
+                          updateField(
+                            "location",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
 
-                <p>
-                  AI is evaluating the job
-                  against your candidate profile.
-                </p>
+                    <label className="copilot-full">
+                      Job description
+                      <textarea
+                        required
+                        rows="12"
+                        placeholder="Paste the complete job description here..."
+                        value={form.description}
+                        onChange={(event) =>
+                          updateField(
+                            "description",
+                            event.target.value
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
 
+                  {error && (
+                    <div className="copilot-error">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="copilot-primary"
+                    disabled={loading}
+                  >
+                    {loading
+                      ? "ANALYZING..."
+                      : "ANALYZE OPPORTUNITY"}
+                  </button>
+                </form>
               </div>
 
+              <div className="copilot-preview">
+                {!result && !loading && (
+                  <>
+                    <div className="copilot-preview-line" />
+                    <div className="copilot-section-label">
+                      DECISION ENGINE
+                    </div>
+                    <h2>Know before you apply</h2>
+                    <p>
+                      The system separates four signals:
+                      candidate fit, geographic eligibility,
+                      opportunity quality and final action.
+                    </p>
+
+                    <div className="copilot-signal-list">
+                      <div>
+                        <span>01</span>
+                        <strong>Candidate fit</strong>
+                        <small>
+                          Match the role against your profile
+                        </small>
+                      </div>
+                      <div>
+                        <span>02</span>
+                        <strong>Remote eligibility</strong>
+                        <small>
+                          Detect restrictions and uncertainty
+                        </small>
+                      </div>
+                      <div>
+                        <span>03</span>
+                        <strong>Opportunity quality</strong>
+                        <small>
+                          Rank what deserves attention
+                        </small>
+                      </div>
+                      <div>
+                        <span>04</span>
+                        <strong>Human decision</strong>
+                        <small>
+                          AI recommends and you decide when to apply
+                        </small>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {loading && (
+                  <div className="copilot-processing">
+                    <div className="copilot-spinner" />
+                    <div className="copilot-section-label">
+                      PROCESSING
+                    </div>
+                    <h2>Analyzing opportunity...</h2>
+                    <p>
+                      AI is evaluating the role against
+                      your candidate profile
+                    </p>
+                  </div>
+                )}
+
+                {result && (
+                  <AnalysisResult
+                    result={result}
+                    onOpenJob={openOriginalJob}
+                  />
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {activeTab === "opportunities" && (
+          <>
+            <section className="copilot-page-hero">
+              <div>
+                <div className="copilot-kicker">
+                  OPPORTUNITY PIPELINE
+                </div>
+                <h1>From job listings to real opportunities</h1>
+                <p>
+                  Ranked after search, AI matching, geo assessment
+                  and opportunity scoring
+                </p>
+              </div>
+
+              <div className="copilot-kpi-strip">
+                <div>
+                  <span>OPEN</span>
+                  <strong>{opportunities.length}</strong>
+                </div>
+                <div>
+                  <span>HIGH</span>
+                  <strong className="accent">
+                    {highPriorityCount}
+                  </strong>
+                </div>
+                <div>
+                  <span>VERIFY</span>
+                  <strong className="warning">
+                    {verifyCount}
+                  </strong>
+                </div>
+              </div>
+            </section>
+
+            <div className="copilot-page-actions">
+              <button
+                type="button"
+                className="copilot-secondary"
+                onClick={loadOpportunities}
+                disabled={opportunitiesLoading}
+              >
+                {opportunitiesLoading
+                  ? "Refreshing..."
+                  : "Refresh opportunities"}
+              </button>
+            </div>
+
+            {opportunitiesError && (
+              <div className="copilot-error">
+                {opportunitiesError}
+              </div>
             )}
 
-            {result && (
-
-              <AnalysisResult
-                result={result}
-                onOpenJob={
-                  openOriginalJob
-                }
-              />
-
+            {packageError && (
+              <div className="copilot-error">
+                {packageError}
+              </div>
             )}
 
-          </section>
+            {packageLoading && (
+              <div
+                className="copilot-panel copilot-loading-panel"
+                id="apply-package-panel"
+              >
+                <div className="copilot-spinner" />
+                <div className="copilot-section-label">
+                  BUILDING APPLY PACKAGE
+                </div>
+                <h2>Loading opportunity detail...</h2>
+              </div>
+            )}
 
-        </main>
-
-      )}
-
-      {/* ======================================================
-          MY OPPORTUNITIES
-      ====================================================== */}
-
-      {activeTab ===
-        "opportunities" && (
-
-        <main className="opportunities-page">
-
-          <div className="opportunities-header">
-
-            <div>
-
-              <p className="eyebrow">
-                OPPORTUNITY PIPELINE
-              </p>
-
-              <h2>
-                My Opportunities
-              </h2>
-
-              <p className="muted">
-                Lowongan yang sudah melalui
-                filter, AI matching, geo assessment,
-                dan opportunity scoring.
-              </p>
-
-            </div>
-
-            <button
-              type="button"
-              className="refresh-button"
-              onClick={
-                loadOpportunities
-              }
-              disabled={
-                opportunitiesLoading
-              }
-            >
-              {opportunitiesLoading
-                ? "Loading..."
-                : "Refresh"}
-            </button>
-
-          </div>
-
-          {opportunitiesError && (
-            <div className="error">
-              {opportunitiesError}
-            </div>
-          )}
-
-          {packageError && (
-            <div className="error">
-              {packageError}
-            </div>
-          )}
-
-          {packageLoading && (
-            <div
-              className="card package-loading"
-              id="apply-package-panel"
-            >
-              <div className="loader" />
-
-              <h2>
-                Loading Apply Package...
-              </h2>
-            </div>
-          )}
-
-          {selectedPackage &&
-            !packageLoading && (
+            {selectedPackage && !packageLoading && (
               <div id="apply-package-panel">
                 <ApplyPackage
-                  opportunity={
-                    selectedPackage
-                  }
-                  onOpenJob={
-                    openOriginalJob
-                  }
-                  onMarkApplied={
-                    markAsApplied
-                  }
-                  applicationSaving={
-                    applicationSaving
-                  }
-                  applicationMessage={
-                    applicationMessage
-                  }
+                  opportunity={selectedPackage}
+                  onOpenJob={openOriginalJob}
+                  onMarkApplied={markAsApplied}
+                  applicationSaving={applicationSaving}
+                  applicationMessage={applicationMessage}
                 />
               </div>
             )}
 
-          {opportunitiesLoading ? (
+            {opportunitiesLoading ? (
+              <div className="copilot-panel copilot-loading-panel">
+                <div className="copilot-spinner" />
+                <div className="copilot-section-label">
+                  LOADING
+                </div>
+                <h2>Refreshing the pipeline...</h2>
+              </div>
+            ) : opportunities.length === 0 ? (
+              <div className="copilot-panel copilot-empty-panel">
+                <div className="copilot-empty-number">01</div>
+                <div className="copilot-section-label">
+                  PIPELINE CLEAR
+                </div>
+                <h2>No actionable opportunities yet</h2>
+                <p>
+                  New roles will appear here after the production
+                  search and assessment pipeline runs
+                </p>
+              </div>
+            ) : (
+              <div className="copilot-opportunity-list">
+                {opportunities.map((opportunity) => (
+                  <OpportunityCard
+                    key={opportunity.id}
+                    opportunity={opportunity}
+                    onOpenJob={openOriginalJob}
+                    onViewPackage={loadApplyPackage}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
 
-            <div className="card loading-card">
+        {activeTab === "applications" && (
+          <>
+            <section className="copilot-page-hero">
+              <div>
+                <div className="copilot-kicker">
+                  APPLICATION TRACKER
+                </div>
+                <h1>Keep your applications moving</h1>
+                <p>
+                  One place for the jobs you reviewed, applied to
+                  and moved forward
+                </p>
+              </div>
 
-              <div className="loader" />
+              <div className="copilot-kpi-strip">
+                <div>
+                  <span>APPLICATIONS</span>
+                  <strong>{applications.length}</strong>
+                </div>
+              </div>
+            </section>
 
-              <h2>
-                Loading opportunities...
-              </h2>
-
+            <div className="copilot-page-actions">
+              <button
+                type="button"
+                className="copilot-secondary"
+                onClick={loadApplications}
+                disabled={applicationsLoading}
+              >
+                {applicationsLoading
+                  ? "Refreshing..."
+                  : "Refresh applications"}
+              </button>
             </div>
 
-          ) : (
+            {applicationsError && (
+              <div className="copilot-error">
+                {applicationsError}
+              </div>
+            )}
 
-            <div className="opportunity-grid">
-
-              {opportunities.map(
-                (opportunity) => (
-
-                  <OpportunityCard
-                    key={
-                      opportunity.id
-                    }
-                    opportunity={
-                      opportunity
-                    }
-                    onOpenJob={
-                      openOriginalJob
-                    }
-                    onViewPackage={
-                      loadApplyPackage
+            {applicationsLoading ? (
+              <div className="copilot-panel copilot-loading-panel">
+                <div className="copilot-spinner" />
+                <div className="copilot-section-label">
+                  LOADING
+                </div>
+                <h2>Refreshing applications...</h2>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="copilot-panel copilot-empty-panel">
+                <div className="copilot-empty-number">00</div>
+                <div className="copilot-section-label">
+                  APPLICATION TRACKER
+                </div>
+                <h2>No applications tracked yet</h2>
+                <p>
+                  Once you verify an opportunity and mark it as applied,
+                  the outcome will appear here
+                </p>
+              </div>
+            ) : (
+              <div className="copilot-application-list">
+                {applications.map((application) => (
+                  <ApplicationCard
+                    key={application.id}
+                    application={application}
+                    onOpenJob={openOriginalJob}
+                    onUpdateStatus={updateApplicationStatus}
+                    updating={
+                      statusUpdating === application.id
                     }
                   />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </main>
 
-                )
-              )}
+      <footer className="copilot-footer">
+        <nav className="copilot-footer-links" aria-label="Footer">
+          <button
+            type="button"
+            className="copilot-footer-link"
+            onClick={() => setInfoModal("about")}
+          >
+            About
+          </button>
 
+          <a
+            href="https://github.com/vidiatmoko/ai-job-matcher-agent"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="copilot-footer-link"
+          >
+            GitHub
+          </a>
+
+          <a
+            href="https://www.linkedin.com/in/anggik-pipit-vidiatmoko/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="copilot-footer-link"
+          >
+            LinkedIn
+          </a>
+
+          <button
+            type="button"
+            className="copilot-footer-link"
+            onClick={() => setInfoModal("privacy")}
+          >
+            Privacy
+          </button>
+        </nav>
+
+        <div className="copilot-footer-brand">
+          © 2026 Vidi - Remote Job Intelligence
+        </div>
+      </footer>
+
+      {infoModal && (
+        <div
+          className="copilot-modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setInfoModal(null)}
+        >
+          <div
+            className="copilot-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="copilot-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="copilot-modal-close"
+              onClick={() => setInfoModal(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <div className="copilot-section-label">
+              {infoModal === "about" ? "ABOUT" : "PRIVACY"}
             </div>
 
-          )}
+            <h2 id="copilot-modal-title">
+              {infoModal === "about"
+                ? "Remote Job Intelligence"
+                : "Privacy"}
+            </h2>
 
-        </main>
-
-      )}
-
-      {/* ======================================================
-          MY APPLICATIONS
-      ====================================================== */}
-
-      {activeTab ===
-        "applications" && (
-
-        <main className="opportunities-page">
-
-          <div className="opportunities-header">
-
-            <div>
-
-              <p className="eyebrow">
-                APPLICATION TRACKER
-              </p>
-
-              <h2>
-                My Applications
-              </h2>
-
-              <p className="muted">
-                Pantau semua lowongan yang
-                pernah kamu tandai sebagai
-                application.
-              </p>
-
-            </div>
+            {infoModal === "about" ? (
+              <>
+                <p>
+                  Remote Job Intelligence is an Indonesia-built remote job
+                  intelligence system that researches, evaluates and
+                  prioritizes global remote opportunities
+                </p>
+                <p>
+                  AI handles the research and analysis. The final decision
+                  to apply remains with the human
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  Job information is analyzed to support career decisions
+                  and opportunity evaluation
+                </p>
+                <p>
+                  Application actions remain user-controlled
+                </p>
+              </>
+            )}
 
             <button
               type="button"
-              className="refresh-button"
-              onClick={
-                loadApplications
-              }
-              disabled={
-                applicationsLoading
-              }
+              className="copilot-modal-action"
+              onClick={() => setInfoModal(null)}
             >
-              {applicationsLoading
-                ? "Loading..."
-                : "Refresh"}
+              Close
             </button>
-
           </div>
-
-          {applicationsError && (
-            <div className="error">
-              {applicationsError}
-            </div>
-          )}
-
-          {applicationsLoading ? (
-
-            <div className="card loading-card">
-
-              <div className="loader" />
-
-              <h2>
-                Loading applications...
-              </h2>
-
-            </div>
-
-          ) : applications.length ===
-            0 ? (
-
-            <div className="card empty">
-
-              <div className="empty-icon">
-                APP
-              </div>
-
-              <h2>
-                No applications yet
-              </h2>
-
-              <p>
-                Setelah kamu menandai
-                opportunity sebagai APPLIED,
-                riwayatnya akan muncul di sini.
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div className="applications-grid">
-
-              {applications.map(
-                (application) => (
-
-                  <ApplicationCard
-                    key={
-                      application.id
-                    }
-                    application={
-                      application
-                    }
-                    onOpenJob={
-                      openOriginalJob
-                    }
-                    onUpdateStatus={
-                      updateApplicationStatus
-                    }
-                    updating={
-                      statusUpdating ===
-                      application.id
-                    }
-                  />
-
-                )
-              )}
-
-            </div>
-
-          )}
-
-        </main>
-
+        </div>
       )}
 
     </div>
   );
 }
-
 
 // ============================================================
 // ANALYSIS RESULT
@@ -1929,5 +1979,6 @@ function Metric({
   );
 }
 
+// Final AI workspace design direction inspired by modern enterprise automation products; logic preserved.
 export default App;
 
