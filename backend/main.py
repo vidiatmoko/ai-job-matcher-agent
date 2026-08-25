@@ -155,6 +155,16 @@ def search_jobs_endpoint(payload: SearchRequest):
             detail=f"Gagal menjalankan job search: {error}",
         )
 
+@app.get("/api/debug/sources")
+def debug_sources():
+    import os
+
+    return {
+        "adzuna_app_id_present": bool(os.getenv("ADZUNA_APP_ID")),
+        "adzuna_app_key_present": bool(os.getenv("ADZUNA_APP_KEY")),
+        "gemini_api_key_present": bool(os.getenv("GEMINI_API_KEY")),
+    }
+
 
 @app.post("/api/evaluate")
 def evaluate_job_endpoint(payload: JobRequest):
