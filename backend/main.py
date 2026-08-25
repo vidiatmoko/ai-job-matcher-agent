@@ -188,6 +188,52 @@ def debug_source_connectivity():
 
     return results
 
+@app.get("/api/debug/source-diagnostics")
+def debug_source_diagnostics():
+    from backend.services.sources.registry import get_job_sources
+
+    results = []
+
+    for source in get_job_sources():
+        entry = {
+            "source": source.name,
+            "raw_count": None,
+            "search_count": None,
+            "error": None,
+        }
+
+        try:
+            if source.name == "remoteok":
+                raw_jobs = source._fetch_jobs()
+            elif source.name == "adzuna":
+                raw_jobs = source._fetch_jobs(
+                    keyword="developer",
+                    location="",
+                    page=1,
+                    limit=5,
+                )
+            else:
+                raw_jobs = []
+
+            entry["raw_count"] = len(raw_jobs)
+
+            try:
+                searched = source.search(
+                    keyword="developer",
+                    location="",
+                    limit=5,
+                )
+                entry["search_count"] = len(searched)
+            except Exception as error:
+                entry["error"] = f"search: {error}"
+
+        except Exception as error:
+            entry["error"] = f"fetch: {error}"
+
+        results.append(entry)
+
+    return results
+
 
 @app.post("/api/evaluate")
 def evaluate_job_endpoint(payload: JobRequest):
