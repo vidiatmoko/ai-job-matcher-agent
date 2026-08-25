@@ -165,6 +165,29 @@ def debug_sources():
         "gemini_api_key_present": bool(os.getenv("GEMINI_API_KEY")),
     }
 
+@app.get("/api/debug/source-connectivity")
+def debug_source_connectivity():
+    import requests
+
+    results = {}
+
+    for name, url in {
+        "remoteok": "https://remoteok.com/api",
+        "adzuna": "https://api.adzuna.com/v1/api/jobs/gb/search/1",
+    }.items():
+        try:
+            response = requests.get(url, timeout=15)
+            results[name] = {
+                "status_code": response.status_code,
+                "content_length": len(response.content),
+            }
+        except Exception as error:
+            results[name] = {
+                "error": str(error),
+            }
+
+    return results
+
 
 @app.post("/api/evaluate")
 def evaluate_job_endpoint(payload: JobRequest):
