@@ -431,7 +431,7 @@ def manual_job_endpoint(payload: ManualJobRequest):
 def notification_opportunities_endpoint():
     try:
         opportunities = list_priority_opportunities(
-            minimum_priority="LOW"
+            minimum_priority="VERIFY"
         )
 
         applications = list_applications()
